@@ -1,0 +1,75 @@
+\chapter{Challenges Faced}
+
+\section{Technical Challenges}
+
+\subsection{Scapy and Administrative Privileges}
+
+The real-time packet capture engine relies on Scapy's \texttt{sniff()} function, which requires raw socket access. On Windows systems, this necessitates:
+\begin{itemize}
+    \item Administrative (elevated) privileges for the Python process.
+    \item Installation of \textbf{Npcap} (or the legacy WinPcap) driver for low-level network interface access.
+\end{itemize}
+
+In academic and lab environments, obtaining persistent administrative access is often impractical. To address this, SENTINEL AI implements an \textbf{Autonomous Simulation Engine} that automatically activates when live capture fails. The simulation generates high-fidelity synthetic traffic flows (Mirai, C2 Beacon, UDP Flood, SSH Brute Force) that faithfully replicate real attack patterns, ensuring full system functionality without requiring elevated privileges.
+
+\subsection{SHAP Compatibility Across Model Types}
+
+The SHAP library provides multiple explainer backends (\texttt{TreeExplainer}, \texttt{KernelExplainer}, \texttt{Explainer}) with varying API signatures and return formats. Challenges encountered:
+\begin{itemize}
+    \item \texttt{TreeExplainer} returns different formats (list vs. array) depending on the model type and SHAP version.
+    \item Binary classification models return SHAP values as either a list of two arrays (one per class) or a single 2D array.
+    \item The \texttt{expected\_value} attribute can be a scalar, list, or numpy array.
+\end{itemize}
+
+This was resolved by implementing a robust fallback chain in the \texttt{/explain} endpoint, with explicit type-checking and format normalization for all possible return types.
+
+\subsection{Class Imbalance in Training Data}
+
+The synthetic dataset mirrors real-world botnet traffic distributions (90\% benign, 10\% malicious). Without mitigation, classifiers exhibit:
+\begin{itemize}
+    \item High accuracy ($>$90\%) due to majority-class bias.
+    \item Poor recall ($<$75\%) for the minority botnet class.
+    \item Misleading F1-Scores that mask detection failure.
+\end{itemize}
+
+SMOTE was applied exclusively to the training set (post train-test split) to prevent data leakage, resulting in a balanced 50:50 distribution and a 20\% improvement in recall.
+
+\subsection{Cross-Origin Resource Sharing (CORS)}
+
+The Streamlit dashboard and the FastAPI backend run on different ports (8501 and 8000 respectively), triggering CORS restrictions in browser-based API calls. This was resolved by adding the \texttt{CORSMiddleware} with permissive settings:
+
+\begin{lstlisting}[caption={CORS Configuration}, label={lst:cors}]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+\end{lstlisting}
+
+\section{Engineering Challenges}
+
+\subsection{Multi-Process Orchestration}
+
+Launching three independent services (Backend, Sniffer, Dashboard) required careful lifecycle management. The \texttt{run\_all.py} orchestrator uses \texttt{subprocess.Popen} with:
+\begin{itemize}
+    \item \texttt{CREATE\_NEW\_CONSOLE} flag on Windows for separate console windows.
+    \item Daemon threading in the sniffer to prevent zombie processes.
+    \item Graceful shutdown via \texttt{KeyboardInterrupt} handling.
+\end{itemize}
+
+\subsection{SQLite Concurrency}
+
+SQLite has inherent limitations with concurrent writes. Since both the FastAPI backend and the sniffer engine may attempt to write to the database simultaneously, the \texttt{check\_same\_thread=False} flag was required in the SQLAlchemy engine configuration.
+
+\subsection{Streamlit State Management}
+
+Streamlit's re-execution model (where the entire script reruns on each interaction) posed challenges for the Live Monitoring page, which requires continuous data streaming. This was addressed using a controlled loop with \texttt{time.sleep()} and \texttt{st.empty()} placeholders for dynamic content updates.
+
+\section{Academic Challenges}
+
+\begin{itemize}
+    \item \textbf{Dataset Availability:} The full CICIDS2017 dataset ($\sim$8 GB) could not be bundled with the project. A synthetic generator was created to produce statistically representative data for reproducibility.
+    \item \textbf{Hyperparameter Tuning:} Full Bayesian optimization was computationally expensive for the scope of this project. Default hyperparameters with manual tuning were used as a pragmatic compromise.
+    \item \textbf{Evaluation Rigor:} Cross-validation was omitted in favor of a single stratified train-test split due to time constraints. Future work should incorporate $k$-fold cross-validation.
+\end{itemize}

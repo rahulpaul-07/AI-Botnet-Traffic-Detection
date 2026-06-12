@@ -1,0 +1,56 @@
+\chapter{Introduction}
+
+\section{Background and Motivation}
+
+The rapid proliferation of Internet-connected devices and the expansion of network infrastructure have created an ever-growing attack surface for cyber threats. Among the most insidious and damaging of these threats are \textbf{botnets}---networks of compromised devices (``bots'') controlled remotely by a malicious actor (the ``botmaster'') via a Command-and-Control (C2) channel. Botnets are responsible for a significant portion of global cybercrime, including Distributed Denial-of-Service (DDoS) attacks, credential stuffing, spam campaigns, cryptojacking, and large-scale data exfiltration \cite{mirkovic2004taxonomy}.
+
+Traditional security mechanisms such as signature-based Intrusion Detection Systems (IDS) and static firewall rules are increasingly inadequate against modern botnets. Contemporary botnets like \textit{Mirai}, \textit{Emotet}, and \textit{TrickBot} employ sophisticated evasion techniques, including encrypted C2 channels, Domain Generation Algorithms (DGAs), and polymorphic payloads, rendering signature-based detection unreliable \cite{antonakakis2017understanding}. This limitation has driven the research community toward \textbf{Machine Learning (ML)-based Network Intrusion Detection Systems (NIDS)} that can generalize from behavioral patterns rather than relying on known signatures.
+
+However, the adoption of ML in critical security infrastructure introduces a new challenge: the \textbf{``black-box'' problem}. High-performing models such as Gradient Boosted Decision Trees (GBDT) and deep neural networks offer excellent detection accuracy but provide little transparency into their decision-making process. For security analysts operating in Security Operations Centers (SOCs), understanding \textit{why} a flow was flagged is as important as the detection itself. This has motivated the integration of \textbf{Explainable AI (XAI)} frameworks, particularly SHAP (SHapley Additive exPlanations), into the detection pipeline.
+
+\section{Problem Statement}
+
+Despite advances in ML-based intrusion detection, several critical gaps persist in the existing literature and deployed systems:
+
+\begin{enumerate}
+    \item \textbf{Lack of End-to-End Integration:} Most academic research focuses on isolated components---either the ML model, the feature engineering, or the detection---without providing a fully integrated, production-deployable system.
+    \item \textbf{Class Imbalance:} Real-world network traffic is overwhelmingly benign, with botnet flows constituting a minuscule fraction ($<$1--5\%). Standard classifiers trained on such imbalanced data exhibit poor recall for the minority (botnet) class.
+    \item \textbf{Absence of Explainability:} Very few deployed NIDS provide interpretable justifications for their predictions, limiting the trust and operational utility of the system.
+    \item \textbf{Real-time Processing Gap:} The transition from offline batch classification to real-time, per-flow inference remains a significant engineering challenge.
+\end{enumerate}
+
+\section{Objectives}
+
+The primary objective of this project, \textbf{SENTINEL AI}, is to design, implement, and evaluate a production-grade, real-time botnet detection system that addresses the above limitations. The specific goals are:
+
+\begin{enumerate}
+    \item To implement a robust data preprocessing pipeline that handles missing values, infinite values, feature scaling, and class imbalance using SMOTE (Synthetic Minority Over-sampling Technique).
+    \item To train and benchmark multiple ML classifiers---Random Forest, XGBoost, and LightGBM---using the CICIDS2017-inspired feature set, and to select the champion model based on F1-Score and ROC-AUC.
+    \item To build a RESTful API backend using FastAPI for real-time inference, threat logging, and database-backed persistence.
+    \item To develop a real-time packet sniffing engine using Scapy for bidirectional flow aggregation and live feature extraction.
+    \item To integrate SHAP-based Explainable AI for per-threat feature attribution analysis.
+    \item To design a professional, interactive monitoring dashboard using Streamlit with real-time telemetry and XAI visualizations.
+    \item To containerize the entire system using Docker for reproducible deployment.
+\end{enumerate}
+
+\section{Scope of the Project}
+
+SENTINEL AI is scoped as an academic research prototype with production-grade architectural principles. The system operates on:
+\begin{itemize}
+    \item \textbf{Dataset:} A synthetic CICIDS2017-like dataset with 10,000 bidirectional flow records (12 features) is used for training. The synthetic generation faithfully replicates the statistical distributions of the original CICIDS2017 benchmark.
+    \item \textbf{Feature Space:} 12 network flow features including temporal (flow duration, inter-arrival time), volumetric (packets per second, bytes per second), length-based (mean/standard deviation of packet lengths), and flag-based (SYN, ACK, PSH counts) attributes.
+    \item \textbf{Deployment:} The system is designed for local deployment with Docker-compose support. It includes simulation capabilities for environments without administrative network access.
+\end{itemize}
+
+\section{Organization of the Report}
+
+The remainder of this report is organized as follows:
+
+\begin{itemize}
+    \item \textbf{Chapter 2 -- Literature Survey:} Reviews related work in ML-based NIDS, botnet detection, SHAP explainability, and benchmark datasets.
+    \item \textbf{Chapter 3 -- System Design:} Describes the high-level architecture, data flow diagrams, module decomposition, and database schema.
+    \item \textbf{Chapter 4 -- Implementation:} Details the implementation of each module with code snippets and technical decisions.
+    \item \textbf{Chapter 5 -- Results and Discussion:} Presents the experimental results, model benchmarks, and SHAP analysis.
+    \item \textbf{Chapter 6 -- Challenges Faced:} Discusses the technical and practical challenges encountered during development.
+    \item \textbf{Chapter 7 -- Conclusion and Future Work:} Summarizes the contributions and outlines directions for future research.
+\end{itemize}

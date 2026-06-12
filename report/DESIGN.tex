@@ -1,0 +1,227 @@
+\chapter{System Design}
+
+\section{High-Level Architecture}
+
+SENTINEL AI follows a modular, microservice-inspired architecture composed of five principal subsystems. The design prioritizes separation of concerns, independent scalability, and fault tolerance.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.5cm and 2cm,
+    layer/.style={draw=black!70, thick, rounded corners, inner sep=10pt, text width=12cm, align=center, fill=blue!5},
+    module/.style={draw=black!70, thick, rounded corners, inner sep=5pt, text width=3cm, align=center, fill=white},
+    arrow/.style={->, >=stealth, thick, color=black!70}
+]
+
+% Layer 5
+\node[layer, fill=purple!5] (layer5) {
+    \textbf{Layer 5: Presentation / Interface}\\[0.2cm]
+    \begin{tikzpicture}[every node/.style={module, fill=white, text width=3.2cm}, node distance=0.5cm]
+        \node (dash) {Global Dashboard};
+        \node[right=of dash] (live) {Live Monitoring};
+        \node[right=of live] (shap) {XAI (SHAP) View};
+    \end{tikzpicture}
+};
+
+% Layer 4
+\node[layer, fill=blue!5, below=of layer5] (layer4) {
+    \textbf{Layer 4: Backend API \& Services}\\[0.2cm]
+    \begin{tikzpicture}[every node/.style={module, fill=white, text width=3.2cm}, node distance=0.5cm]
+        \node (fast) {FastAPI Server};
+        \node[right=of fast] (db) {SQLite Database};
+        \node[right=of db] (auth) {Health \& Logging};
+    \end{tikzpicture}
+};
+
+% Layer 3
+\node[layer, fill=green!5, below=of layer4] (layer3) {
+    \textbf{Layer 3: ML Inference Engine}\\[0.2cm]
+    \begin{tikzpicture}[every node/.style={module, fill=white, text width=3.2cm}, node distance=0.5cm]
+        \node (xgb) {Champion XGBoost};
+        \node[right=of xgb] (scaler) {Standard Scaler};
+        \node[right=of scaler] (shap_eng) {TreeExplainer};
+    \end{tikzpicture}
+};
+
+% Layer 2
+\node[layer, fill=orange!5, below=of layer3] (layer2) {
+    \textbf{Layer 2: Feature Engineering}\\[0.2cm]
+    \begin{tikzpicture}[every node/.style={module, fill=white, text width=3.2cm}, node distance=0.5cm]
+        \node (extract) {12-D Vector Extractor};
+        \node[right=of extract] (agg) {Biflow Aggregation};
+        \node[right=of agg] (smote) {SMOTE Balancer};
+    \end{tikzpicture}
+};
+
+% Layer 1
+\node[layer, fill=red!5, below=of layer2] (layer1) {
+    \textbf{Layer 1: Data Ingestion}\\[0.2cm]
+    \begin{tikzpicture}[every node/.style={module, fill=white, text width=3.2cm}, node distance=0.5cm]
+        \node (scapy) {Scapy Sniffer};
+        \node[right=of scapy] (sim) {Pulse Simulator};
+        \node[right=of sim] (pcap) {CICIDS2017 Data};
+    \end{tikzpicture}
+};
+
+% Arrows
+\draw[arrow] (layer1.north) -- (layer2.south) node[midway, right, text width=3cm, font=\footnotesize] {Raw Packets};
+\draw[arrow] (layer2.north) -- (layer3.south) node[midway, right, text width=3cm, font=\footnotesize] {Scaled Vectors};
+\draw[arrow] (layer3.north) -- (layer4.south) node[midway, right, text width=3cm, font=\footnotesize] {Predictions \& SHAP};
+\draw[arrow] (layer4.north) -- (layer5.south) node[midway, right, text width=3cm, font=\footnotesize] {JSON API via HTTP};
+
+\end{tikzpicture}
+}
+\caption{Comprehensive SENTINEL AI System Architecture}
+\label{fig:system_architecture}
+\end{figure}
+
+\section{Module Decomposition}
+
+\begin{table}[H]
+\centering
+\caption{Module Decomposition of SENTINEL AI}
+\label{tab:modules}
+\begin{tabular}{l l p{6.5cm}}
+\toprule
+\textbf{Module} & \textbf{Directory} & \textbf{Responsibility} \\
+\midrule
+Data Pipeline & \texttt{preprocessing/} & Dataset loading, synthetic generation, SMOTE, scaling \\
+Model Trainer & \texttt{training/} & Multi-model training, benchmarking, plot generation \\
+Backend API & \texttt{backend\_api/} & RESTful API, threat logging, SHAP, database \\
+Sniffer Engine & \texttt{realtime/} & Packet capture, biflow aggregation, simulation \\
+Dashboard & \texttt{frontend\_streamlit/} & Interactive UI with Plotly and SHAP \\
+Orchestrator & \texttt{run\_all.py} & System-wide process launcher \\
+Initializer & \texttt{init\_project.py} & One-command project setup \\
+Docker & \texttt{docker/} & Containerized deployment \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{10-Step Academic Pipeline}
+
+\begin{figure}[H]
+\centering
+\resizebox{0.75\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=0.8cm and 0.8cm,
+    step/.style={draw=black!70, thick, rounded corners, inner sep=6pt, text width=6cm, align=center, fill=blue!5},
+    arrow/.style={->, >=stealth, thick, color=black!70}
+]
+
+% Nodes
+\node[step] (s1) {\textbf{1. Data Ingestion}\\Raw PCAP or synthetic generation};
+\node[step, below=of s1] (s2) {\textbf{2. Flow Aggregation}\\Grouping packets into Biflows};
+\node[step, below=of s2] (s3) {\textbf{3. Feature Engineering}\\Extraction of 12 statistical metrics};
+\node[step, below=of s3] (s4) {\textbf{4. Data Cleaning}\\Removal of NaN, $\pm\infty$, duplicates};
+\node[step, below=of s4] (s5) {\textbf{5. Class Balancing}\\SMOTE for 90:10 imbalance};
+\node[step, right=1.5cm of s1] (s6) {\textbf{6. Feature Scaling}\\StandardScaler normalization};
+\node[step, below=of s6] (s7) {\textbf{7. Model Benchmarking}\\RF vs XGBoost vs LightGBM};
+\node[step, below=of s7] (s8) {\textbf{8. Evaluation}\\F1-Score, ROC-AUC, Confusion Matrix};
+\node[step, below=of s8] (s9) {\textbf{9. Model Export}\\Joblib serialization to \texttt{.pkl}};
+\node[step, below=of s9] (s10) {\textbf{10. Deployment}\\FastAPI real-time inference};
+
+% Edges Column 1
+\draw[arrow] (s1) -- (s2);
+\draw[arrow] (s2) -- (s3);
+\draw[arrow] (s3) -- (s4);
+\draw[arrow] (s4) -- (s5);
+
+% Edge between columns
+\draw[arrow] (s5.south) -- +(0,-0.4) -| +(4.2,0.4) |- (s6.west);
+
+% Edges Column 2
+\draw[arrow] (s6) -- (s7);
+\draw[arrow] (s7) -- (s8);
+\draw[arrow] (s8) -- (s9);
+\draw[arrow] (s9) -- (s10);
+
+\end{tikzpicture}
+}
+\caption{10-Step Academic Workflow Pipeline}
+\label{fig:academic_pipeline}
+\end{figure}
+
+\section{Database Design}
+
+SENTINEL AI uses SQLite via SQLAlchemy ORM for persistence.
+
+\begin{table}[H]
+\centering
+\caption{Database Schema -- \texttt{threats} Table}
+\label{tab:db_schema}
+\begin{tabular}{l l p{5.5cm}}
+\toprule
+\textbf{Column} & \textbf{Type} & \textbf{Description} \\
+\midrule
+\texttt{id} & INTEGER (PK) & Auto-incrementing identifier \\
+\texttt{timestamp} & DATETIME & UTC detection timestamp \\
+\texttt{src\_ip} & VARCHAR & Source IP address \\
+\texttt{dst\_port} & INTEGER & Destination port \\
+\texttt{protocol} & VARCHAR & TCP/UDP/ICMP \\
+\texttt{confidence} & FLOAT & Model confidence score \\
+\texttt{threat\_type} & VARCHAR & DDoS, C2, Scanning, Spam \\
+\texttt{features} & JSON & Raw 12-feature vector \\
+\texttt{status} & VARCHAR & Lifecycle status \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{API Design}
+
+\begin{table}[H]
+\centering
+\caption{SENTINEL AI REST API Endpoints}
+\label{tab:api_endpoints}
+\begin{tabular}{l l p{6.5cm}}
+\toprule
+\textbf{Method} & \textbf{Endpoint} & \textbf{Description} \\
+\midrule
+POST & \texttt{/predict} & Binary prediction with confidence \\
+POST & \texttt{/log\_threat} & Log threat to database \\
+GET & \texttt{/threats} & Recent threats (default: 50) \\
+GET & \texttt{/explain/\{id\}} & SHAP feature attribution \\
+GET & \texttt{/health} & System health status \\
+POST & \texttt{/seed} & Seed 20 synthetic threats \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Feature Set Definition}
+
+\begin{table}[H]
+\centering
+\caption{Network Flow Feature Definitions}
+\label{tab:features}
+\begin{tabular}{l l p{5.5cm}}
+\toprule
+\textbf{Feature} & \textbf{Category} & \textbf{Description} \\
+\midrule
+\texttt{flow\_duration} & Temporal & Flow duration (microseconds) \\
+\texttt{fwd\_packets\_tot} & Volumetric & Forward packet count \\
+\texttt{bwd\_packets\_tot} & Volumetric & Backward packet count \\
+\texttt{flow\_byts\_s} & Volumetric & Bytes per second \\
+\texttt{flow\_pkts\_s} & Volumetric & Packets per second \\
+\texttt{pkt\_len\_mean} & Length & Mean packet length \\
+\texttt{pkt\_len\_std} & Length & Packet length std dev \\
+\texttt{iat\_mean} & Temporal & Mean inter-arrival time \\
+\texttt{iat\_std} & Temporal & IAT standard deviation \\
+\texttt{syn\_flag\_cnt} & Flag & TCP SYN count \\
+\texttt{ack\_flag\_cnt} & Flag & TCP ACK count \\
+\texttt{psh\_flag\_cnt} & Flag & TCP PSH count \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Dashboard Design}
+
+The Streamlit dashboard provides five operational views:
+\begin{enumerate}
+    \item \textbf{Dashboard:} Attack heatmap, threat donut chart, top IPs, alerts table.
+    \item \textbf{Live Monitoring:} Streaming traffic, threat injection, risk gauge.
+    \item \textbf{Analytics \& SHAP:} Per-threat SHAP bar charts with raw features.
+    \item \textbf{Training Pipeline:} 10-step workflow, ROC curve, confusion matrix.
+    \item \textbf{System Health:} API status, model state, CPU/memory charts.
+\end{enumerate}
+
+The dashboard uses a ``Cosmic-Glass'' design with glassmorphism, nebula gradients, and micro-animations.

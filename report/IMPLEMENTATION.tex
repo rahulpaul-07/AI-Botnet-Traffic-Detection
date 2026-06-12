@@ -1,0 +1,205 @@
+\chapter{Implementation}
+
+\section{Technology Stack}
+
+\begin{table}[H]
+\centering
+\caption{Technology Stack Used in SENTINEL AI}
+\label{tab:tech_stack}
+\begin{tabular}{l l l}
+\toprule
+\textbf{Category} & \textbf{Technology} & \textbf{Version} \\
+\midrule
+Language & Python & 3.11+ \\
+Backend Framework & FastAPI & $\geq$0.100 \\
+ORM & SQLAlchemy & $\geq$2.0 \\
+Database & SQLite & Built-in \\
+ML Framework & Scikit-learn & $\geq$1.3 \\
+Gradient Boosting & XGBoost, LightGBM & $\geq$2.0, $\geq$4.0 \\
+Packet Capture & Scapy & $\geq$2.5 \\
+Class Balancing & imbalanced-learn (SMOTE) & $\geq$0.11 \\
+Explainability & SHAP & $\geq$0.42 \\
+Dashboard & Streamlit & $\geq$1.27 \\
+Visualization & Plotly, Matplotlib & $\geq$5.17, $\geq$3.8 \\
+Containerization & Docker, Docker Compose & Latest \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Data Preprocessing Module}
+
+The \texttt{preprocessing/pipeline.py} module implements the \texttt{DataPipeline} class, which handles data loading, synthetic generation, cleaning, scaling, and SMOTE balancing.
+
+\subsection{Synthetic Data Generation}
+
+When the CICIDS2017 dataset is unavailable, the system generates a synthetic dataset of 10,000 records that faithfully replicates the statistical distributions:
+
+\begin{lstlisting}[caption={Synthetic CICIDS2017-like Data Generation}, label={lst:synthetic}]
+def _generate_synthetic_data(self):
+    np.random.seed(42)
+    rows = 10000
+    data = {
+        'flow_duration': np.random.randint(100, 1000000, rows),
+        'fwd_packets_tot': np.random.randint(1, 100, rows),
+        'bwd_packets_tot': np.random.randint(1, 100, rows),
+        'flow_byts_s': np.random.uniform(0, 100000, rows),
+        'flow_pkts_s': np.random.uniform(0, 1000, rows),
+        'pkt_len_mean': np.random.uniform(40, 1500, rows),
+        'pkt_len_std': np.random.uniform(0, 500, rows),
+        'iat_mean': np.random.uniform(0, 10000, rows),
+        'iat_std': np.random.uniform(0, 5000, rows),
+        'syn_flag_cnt': np.random.randint(0, 2, rows),
+        'ack_flag_cnt': np.random.randint(0, 2, rows),
+        'psh_flag_cnt': np.random.randint(0, 2, rows),
+        'label': np.random.choice(['BENIGN', 'BOTNET'],
+                                   rows, p=[0.9, 0.1])
+    }
+\end{lstlisting}
+
+\subsection{SMOTE Application}
+
+The class imbalance (90\% BENIGN, 10\% BOTNET) is addressed using SMOTE:
+
+\begin{lstlisting}[caption={SMOTE Class Balancing}, label={lst:smote}]
+def balance_and_split(self, X, y):
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42, stratify=y)
+    smote = SMOTE(random_state=42)
+    X_train_res, y_train_res = smote.fit_resample(
+        X_train, y_train)
+    return X_train_res, X_test, y_train_res, y_test
+\end{lstlisting}
+
+\section{Model Training Module}
+
+The \texttt{training/trainer.py} module implements the \texttt{ModelTrainer} class, which benchmarks three classifiers:
+
+\begin{lstlisting}[caption={Multi-Model Benchmarking}, label={lst:trainer}]
+class ModelTrainer:
+    def __init__(self):
+        self.models = {
+            "RandomForest": RandomForestClassifier(
+                n_estimators=100, random_state=42),
+            "XGBoost": XGBClassifier(
+                use_label_encoder=False,
+                eval_metric='logloss', random_state=42),
+            "LightGBM": LGBMClassifier(random_state=42)
+        }
+\end{lstlisting}
+
+The champion model is selected based on the highest F1-Score and serialized using Joblib. In our experiments, \textbf{XGBoost} was consistently selected as the champion model.
+
+\section{Backend API Implementation}
+
+The FastAPI backend (\texttt{backend\_api/main.py}) provides six endpoints. The core prediction endpoint:
+
+\begin{lstlisting}[caption={Inference Endpoint Implementation}, label={lst:predict}]
+@app.post("/predict")
+async def predict_flow(features: FlowFeatures):
+    df = pd.DataFrame([features.dict()])
+    X_scaled = scaler.transform(df)
+    prediction = model.predict(X_scaled)[0]
+    probabilities = model.predict_proba(X_scaled)[0]
+    return {
+        "is_botnet": bool(prediction),
+        "confidence": float(probabilities[prediction]),
+        "timestamp": datetime.now().isoformat()
+    }
+\end{lstlisting}
+
+\subsection{Inference Sequence Diagram}
+
+The following sequence diagram illustrates the step-by-step process of flow prediction:
+
+\begin{figure}[H]
+\centering
+\resizebox{0.85\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=2.5cm,
+    actor/.style={draw=black!70, thick, rounded corners, fill=purple!5, minimum width=2.5cm, minimum height=1cm, align=center},
+    process/.style={draw=black!70, thick, rounded corners, fill=blue!5, minimum width=2.5cm, minimum height=1cm, align=center},
+    model/.style={draw=black!70, thick, rounded corners, fill=green!5, minimum width=2.5cm, minimum height=1cm, align=center},
+    line/.style={draw, thick, -latex'}
+]
+
+% Nodes
+\node[actor] (sniffer) {Scapy Sniffer};
+\node[process, right=of sniffer] (api) {FastAPI \texttt{/predict}};
+\node[process, right=of api] (scaler) {StandardScaler};
+\node[model, right=of scaler] (xgb) {XGBoost Model};
+\node[actor, below=of api, yshift=-1cm] (db) {SQLite Database};
+
+% Edges
+\draw[line] (sniffer) -- node[above, font=\footnotesize] {1. POST JSON Flow} (api);
+\draw[line] (api) -- node[above, font=\footnotesize] {2. Transform} (scaler);
+\draw[line] (scaler) -- node[above, font=\footnotesize] {3. Scaled Vector} (xgb);
+\draw[line] (xgb.south) -- +(0,-0.8) -| node[above right, font=\footnotesize] {4. Probability \& Class} (api.south);
+\draw[line] (api) -- node[left, font=\footnotesize] {5. Async Log} (db);
+\draw[line] (api.south west) -- node[above left, font=\footnotesize] {6. Return JSON} (sniffer.south east);
+
+\end{tikzpicture}
+}
+\caption{Real-Time Inference Sequence}
+\label{fig:inference_sequence}
+\end{figure}
+
+\subsection{SHAP Explanation Endpoint}
+
+The \texttt{/explain/\{id\}} endpoint reconstructs the feature vector from the database and computes SHAP values using \texttt{TreeExplainer}:
+
+\begin{lstlisting}[caption={SHAP Integration in API}, label={lst:shap_api}]
+explainer = shap.TreeExplainer(model)
+shap_values = explainer.shap_values(X_scaled)
+return {
+    "base_value": float(base_val),
+    "values": val,
+    "feature_names": feature_order,
+    "actual_features": threat.features
+}
+\end{lstlisting}
+
+\section{Real-Time Sniffer Engine}
+
+The \texttt{realtime/sniffer.py} module implements the \texttt{RealTimeEngine} class with two operational modes:
+
+\subsection{Live Capture Mode}
+
+Uses Scapy's \texttt{sniff()} for real-time packet capture with biflow aggregation:
+
+\begin{lstlisting}[caption={Biflow-Based Packet Processing}, label={lst:sniffer}]
+def packet_callback(self, pkt):
+    if IP in pkt:
+        ip_src = pkt[IP].src
+        ip_dst = pkt[IP].dst
+        flow_id = tuple(sorted([
+            (ip_src, sport), (ip_dst, dport)
+        ])) + (proto,)
+        flow = self.flows[flow_id]
+        flow['pkt_count'] += 1
+        flow['byte_count'] += len(pkt)
+        flow['packet_lengths'].append(len(pkt))
+        if flow['pkt_count'] >= 10:
+            self._analyze_flow(flow_id, flow)
+\end{lstlisting}
+
+\subsection{Autonomous Simulation Mode}
+
+When administrative privileges are unavailable, the engine automatically falls back to a high-fidelity simulation that generates realistic attack patterns (Mirai, C2 Beacon, UDP Flood, SSH Brute Force).
+
+\section{Dashboard Implementation}
+
+The Streamlit dashboard (\texttt{frontend\_streamlit/app.py}) implements five views with Plotly visualizations. The styling uses a custom CSS injection for the ``Cosmic-Glass'' aesthetic:
+
+\begin{lstlisting}[caption={Cosmic-Glass CSS Injection (excerpt)}, label={lst:css}]
+div[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 15px;
+    transition: transform 0.3s ease;
+}
+\end{lstlisting}
+
+\section{Orchestration and Deployment}
+
+The \texttt{run\_all.py} orchestrator launches all three services (Backend, Sniffer, Dashboard) in parallel subprocesses. Docker deployment is supported via two Dockerfiles and a \texttt{docker-compose.yml} configuration.

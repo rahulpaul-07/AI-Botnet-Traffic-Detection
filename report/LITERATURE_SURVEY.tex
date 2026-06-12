@@ -1,0 +1,135 @@
+\chapter{Literature Survey}
+
+\section{Botnet Architecture and Threat Landscape}
+
+Botnets have evolved from simple IRC-based architectures to highly sophisticated, decentralized peer-to-peer (P2P) networks. The evolution can be broadly categorized into three generations \cite{silva2013botnets}:
+
+\begin{enumerate}
+    \item \textbf{First Generation (IRC-based):} Centralized C2 via IRC channels. Examples include \textit{Agobot} and \textit{SDBot}. These are relatively easy to detect by blocking known IRC servers.
+    \item \textbf{Second Generation (HTTP/DNS-based):} C2 communication over HTTP/HTTPS, blending with legitimate web traffic. \textit{Zeus} and \textit{Conficker} are prominent examples that use Domain Generation Algorithms (DGAs) to evade blacklisting.
+    \item \textbf{Third Generation (P2P and IoT):} Fully decentralized with no single point of failure. \textit{Mirai} (2016) demonstrated the devastating potential of IoT botnets, compromising over 600,000 devices and launching a 1.2 Tbps DDoS attack against Dyn DNS \cite{antonakakis2017understanding}.
+\end{enumerate}
+
+Table~\ref{tab:botnet_evolution} summarizes the key characteristics of major botnet families.
+
+\begin{table}[H]
+\centering
+\caption{Evolution of Major Botnet Families}
+\label{tab:botnet_evolution}
+\begin{tabular}{l l l l}
+\toprule
+\textbf{Botnet} & \textbf{Year} & \textbf{C2 Protocol} & \textbf{Primary Attack} \\
+\midrule
+SDBot & 2002 & IRC & DDoS, Spam \\
+Zeus & 2007 & HTTP/HTTPS & Banking Fraud \\
+Conficker & 2008 & P2P, DNS & Credential Theft \\
+Mirai & 2016 & Custom TCP & IoT DDoS \\
+Emotet & 2014--2021 & HTTP/HTTPS & Malware Distribution \\
+TrickBot & 2016--2022 & HTTPS, SMB & Ransomware Delivery \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Machine Learning for Network Intrusion Detection}
+
+The application of ML to intrusion detection has been extensively studied. The literature can be categorized by the learning paradigm and the feature representation used.
+
+\subsection{Supervised Learning Approaches}
+
+Supervised classifiers remain the dominant approach for botnet detection when labeled datasets are available.
+
+\begin{itemize}
+    \item \textbf{Random Forest:} Beigi et al. \cite{beigi2014towards} demonstrated that Random Forest classifiers achieve high accuracy on flow-level features derived from NetFlow records. The ensemble nature provides inherent resistance to overfitting.
+    \item \textbf{Gradient Boosted Trees (XGBoost, LightGBM):} Chen and Guestrin \cite{chen2016xgboost} introduced XGBoost, which has since become a standard baseline in tabular data classification. Ke et al. \cite{ke2017lightgbm} proposed LightGBM with histogram-based splitting for faster training. Both have been widely adopted for NIDS due to their superior handling of heterogeneous features and class imbalance.
+    \item \textbf{Deep Learning:} Recurrent Neural Networks (LSTMs) and Convolutional Neural Networks (CNNs) have been applied to raw packet payloads and sequential flow data. While they can capture temporal dependencies, their computational overhead and lack of interpretability limit their deployment in latency-sensitive environments \cite{mirsky2018kitsune}.
+\end{itemize}
+
+\subsection{Unsupervised and Semi-supervised Approaches}
+
+For scenarios where labeled data is scarce:
+\begin{itemize}
+    \item \textbf{Autoencoders:} Mirsky et al. \cite{mirsky2018kitsune} proposed Kitsune, an ensemble of autoencoders for anomaly-based NIDS. The system learns a ``normal'' profile and flags deviations.
+    \item \textbf{Clustering:} Gu et al. \cite{gu2008botminer} developed BotMiner, which uses clustering on both C-plane (communication) and A-plane (activity) features to identify coordinated bot behavior.
+\end{itemize}
+
+\section{Benchmark Datasets}
+
+The availability of realistic, labeled datasets is critical for ML-based NIDS research.
+
+\begin{table}[H]
+\centering
+\caption{Comparison of Major NIDS Benchmark Datasets}
+\label{tab:datasets}
+\begin{tabular}{l c c l}
+\toprule
+\textbf{Dataset} & \textbf{Year} & \textbf{Records} & \textbf{Attack Types} \\
+\midrule
+KDD Cup '99 & 1999 & 4.9M & DoS, Probe, R2L, U2R \\
+NSL-KDD & 2009 & 149K & Refined KDD \\
+CICIDS2017 & 2017 & 2.8M & Botnet, DDoS, Brute Force, Web \\
+CIC-DDoS2019 & 2019 & 50M+ & Reflection-based DDoS \\
+TON\_IoT & 2020 & 461K & IoT-specific attacks \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CICIDS2017, developed by Sharafaldin et al. \cite{sharafaldin2018toward}, is the most widely used modern benchmark. It provides bidirectional flow-level features generated using CICFlowMeter and covers a diverse range of attack scenarios. SENTINEL AI adopts the CICIDS2017 feature schema and methodology as its reference standard.
+
+\section{Explainable AI (XAI) in Security}
+
+The ``black-box'' nature of ML models poses significant trust and compliance challenges in security-critical applications.
+
+\subsection{SHAP (SHapley Additive exPlanations)}
+
+Lundberg and Lee \cite{lundberg2017unified} proposed SHAP, a framework rooted in cooperative game theory that assigns each feature a Shapley value indicating its marginal contribution to the prediction. Key properties include:
+
+\begin{itemize}
+    \item \textbf{Local Accuracy:} The sum of SHAP values equals the difference between the prediction and the expected value.
+    \item \textbf{Missingness:} Features that are missing from the input have zero SHAP value.
+    \item \textbf{Consistency:} If a feature's contribution increases, its SHAP value does not decrease.
+\end{itemize}
+
+For tree-based models, the \texttt{TreeExplainer} algorithm computes exact Shapley values in polynomial time ($O(TLD^2)$, where $T$ is the number of trees, $L$ is the maximum number of leaves, and $D$ is the depth).
+
+\subsection{LIME (Local Interpretable Model-agnostic Explanations)}
+
+Ribeiro et al. \cite{ribeiro2016should} proposed LIME, which approximates the local decision boundary of any classifier using an interpretable surrogate model (typically a sparse linear model). While model-agnostic, LIME is less theoretically grounded than SHAP and can produce inconsistent explanations across similar inputs.
+
+\section{Class Imbalance Handling}
+
+Class imbalance is a pervasive problem in NIDS, where benign traffic vastly outnumbers malicious traffic.
+
+\subsection{SMOTE (Synthetic Minority Over-sampling Technique)}
+
+Chawla et al. \cite{chawla2002smote} proposed SMOTE, which generates synthetic minority-class samples by interpolating between existing minority instances in the feature space. Mathematically, for a minority sample $x_i$ and its $k$-nearest neighbor $x_{nn}$:
+
+\begin{equation}
+x_{\text{new}} = x_i + \lambda \cdot (x_{nn} - x_i), \quad \lambda \sim U(0, 1)
+\label{eq:smote}
+\end{equation}
+
+SMOTE has become the de facto standard for addressing class imbalance in NIDS research.
+
+\section{Gap Analysis}
+
+Based on the literature review, Table~\ref{tab:gap_analysis} identifies the key gaps addressed by SENTINEL AI.
+
+\begin{table}[H]
+\centering
+\caption{Gap Analysis: Existing Systems vs. SENTINEL AI}
+\label{tab:gap_analysis}
+\begin{tabular}{p{4cm} c c}
+\toprule
+\textbf{Feature} & \textbf{Existing Systems} & \textbf{SENTINEL AI} \\
+\midrule
+End-to-end pipeline & Partial & \checkmark \\
+SMOTE class balancing & Rare & \checkmark \\
+Multi-model benchmarking & Sometimes & \checkmark \\
+SHAP explainability & Very Rare & \checkmark \\
+Real-time inference API & Rare & \checkmark \\
+Interactive dashboard & Very Rare & \checkmark \\
+Docker deployment & Sometimes & \checkmark \\
+Simulation fallback & Not Found & \checkmark \\
+\bottomrule
+\end{tabular}
+\end{table}

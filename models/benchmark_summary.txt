@@ -1,0 +1,10 @@
+SENTINEL AI - Model Benchmarking Summary
+============================================================
+               Accuracy  Precision  Recall  F1-Score  ROC-AUC  Train_Time
+Model                                                                    
+Random Forest    0.9980     0.9851  0.9950    0.9900   1.0000      0.9300
+XGBoost          0.9975     0.9851  0.9900    0.9875   1.0000      1.0300
+LightGBM         0.9980     0.9900  0.9900    0.9900   1.0000      2.1300
+============================================================
+
+Champion: Random Forest  (F1=0.9900)
