@@ -1,7 +1,32 @@
 # 🛡️ SENTINEL AI - Production-Grade Botnet Detection System
 
+[![CI](https://github.com/rahulpaul-07/AI-Botnet-Traffic-Detection/actions/workflows/ci.yml/badge.svg)](https://github.com/rahulpaul-07/AI-Botnet-Traffic-Detection/actions/workflows/ci.yml) [![Docker Compose Ready](https://github.com/rahulpaul-07/AI-Botnet-Traffic-Detection/actions/workflows/ci.yml/badge.svg)](https://github.com/rahulpaul-07/AI-Botnet-Traffic-Detection/actions/workflows/ci.yml)
+
 ## 🚀 Overview
 SENTINEL AI is a high-fidelity Network Intrusion Detection System (NIDS) designed to identify botnet traffic in real-time. Built with a modular enterprise architecture, it leverages advanced Machine Learning (XGBoost/LightGBM) and real-time packet inspection (Scapy).
+
+## 🧭 Getting Started
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+2. Initialize and train models (if missing):
+```bash
+python init_project.py
+```
+3. Start the full stack:
+```bash
+python run_all.py
+```
+
+> Or run the project in Docker containers:
+> ```bash
+docker compose up --build
+> ```
+
+4. Open the dashboard at `http://localhost:8501` and API docs at `http://localhost:8000/docs`
+
+## 📂 Project Structure
 
 ## 📂 Project Structure
 - `backend_api/`: FastAPI server for inference and logging.
@@ -10,7 +35,6 @@ SENTINEL AI is a high-fidelity Network Intrusion Detection System (NIDS) designe
 - `preprocessing/`: Data cleaning, scaling, and SMOTE balancing.
 - `training/`: Model selection and benchmarking pipeline.
 - `models/`: Storage for trained models and scalers.
-# 🛡️ SENTINEL AI: Advanced Botnet Detection System v5.0
 
 SENTINEL AI is a production-grade, real-time network security suite designed to detect and mitigate botnet traffic using state-of-the-art Machine Learning and Explainable AI (XAI).
 
